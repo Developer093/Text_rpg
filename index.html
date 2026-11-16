@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작은 왕국의 모험</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1e1e2e; --panel: #2a2a3d; --log: #151520; --fg: #e0e0e0; --muted: #888;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; font-size: 15px;
+    display: flex; justify-content: center;
+  }
+  .app {
+    width: 100%; max-width: 900px; height: 100vh; height: 100dvh;
+    display: flex; gap: 0;
+  }
+  /* 왼쪽 상태창 */
+  .side {
+    width: 260px; flex-shrink: 0; background: var(--panel); padding: 18px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .name { font-size: 20px; font-weight: 700; color: #f5c542; }
+  .label { font-weight: 700; font-size: 13px; margin-top: 10px; }
+  .bar { position: relative; height: 18px; background: #444; border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; transition: width .3s, background .3s; }
+  .bar .txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+              font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
+  .bar.thin { height: 8px; }
+  .stats { margin-top: 12px; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 14px; }
+  .stats span:nth-child(odd) { color: var(--muted); }
+  .enemy { margin-top: 22px; display: none; }
+  .enemy.show { display: block; }
+  .vs { text-align: center; color: var(--muted); margin-bottom: 8px; font-size: 13px; letter-spacing: 2px; }
+  .enemy .ename { font-size: 18px; font-weight: 700; color: #ff7a7a; margin-bottom: 4px; }
+
+  /* 오른쪽 */
+  .main { flex: 1; display: flex; flex-direction: column; padding: 12px; min-width: 0; }
+  .place { font-size: 18px; font-weight: 700; padding: 2px 4px 8px; }
+  .log {
+    flex: 1; background: var(--log); border-radius: 6px; padding: 12px 14px; overflow-y: auto;
+    line-height: 1.6; white-space: pre-wrap; word-break: keep-all;
+  }
+  .log div { animation: fade .25s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+  .t-title { color: #f5c542; font-weight: 700; }
+  .t-info  { color: #cfcfcf; }
+  .t-dmg   { color: #7ec8ff; }
+  .t-enemy { color: #ff7a7a; }
+  .t-heal  { color: #7dff9a; }
+  .t-gold  { color: #ffd36e; }
+  .t-level { color: #d58bff; font-weight: 700; }
+  .t-warn  { color: #ffa94d; }
+
+  .buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-top: 10px; }
+  .buttons button {
+    font: inherit; font-weight: 700; color: #fff; border: 0; border-radius: 6px;
+    padding: 12px 6px; cursor: pointer; line-height: 1.3; transition: filter .15s, transform .05s;
+  }
+  .buttons button:hover { filter: brightness(1.15); }
+  .buttons button:active { transform: scale(.97); }
+
+  .shake { animation: shake .3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+
+  /* 대화상자 */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+           align-items: center; justify-content: center; padding: 20px; z-index: 10; }
+  .modal.show { display: flex; }
+  .box { background: var(--panel); border-radius: 10px; padding: 24px; width: 100%; max-width: 340px;
+         text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .box h2 { margin: 0 0 6px; color: #f5c542; font-size: 22px; }
+  .box p { margin: 0 0 16px; white-space: pre-line; color: #cfcfcf; }
+  .box input { width: 100%; font: inherit; padding: 10px; border-radius: 6px; border: 1px solid #555;
+               background: var(--log); color: var(--fg); margin-bottom: 14px; text-align: center; }
+  .box .row { display: flex; gap: 8px; }
+  .box button { flex: 1; font: inherit; font-weight: 700; padding: 10px; border: 0; border-radius: 6px;
+                cursor: pointer; color: #fff; }
+
+  /* 모바일 */
+  @media (max-width: 640px) {
+    .app { flex-direction: column; }
+    .side { width: 100%; padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; }
+    .side .name { grid-column: 1 / -1; font-size: 17px; }
+    .side .label { margin-top: 2px; }
+    .stats { grid-column: 1 / -1; grid-template-columns: repeat(4, auto 1fr); margin-top: 6px; font-size: 13px; gap: 2px 8px; }
+    .enemy { grid-column: 1 / -1; margin-top: 6px; }
+    .vs { display: none; }
+    .enemy .ename { font-size: 15px; }
+    .main { padding: 8px; }
+    .place { font-size: 16px; }
+    .log { font-size: 14px; }
+    .buttons button { padding: 11px 4px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="name" id="pname"></div>
+    <div>
+      <div class="label">HP</div>
+      <div class="bar" id="hpbar"><div class="fill"></div><div class="txt"></div></div>
+    </div>
+    <div>
+      <div class="label">EXP</div>
+      <div class="bar thin" id="expbar"><div class="fill" style="background:#9b6bff"></div></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="enemy" id="enemy">
+      <div class="vs">──── VS ────</div>
+      <div class="ename" id="ename"></div>
+      <div class="bar" id="ebar"><div class="fill"></div><div class="txt"></div></div>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="place" id="place"></div>
+    <div class="log" id="log"></div>
+    <div class="buttons" id="buttons"></div>
+  </main>
+</div>
+
+<div class="modal" id="modal"><div class="box" id="mbox"></div></div>
+
+<script>
+// ═══════════════════════ 게임 데이터 ═══════════════════════
+// [이름, HP, 공격, 방어, 경험치, 골드]
+const MONSTERS = {
+  "숲":  [["슬라임",15,4,0,8,5], ["들쥐",12,5,1,7,4], ["고블린",22,6,1,12,10]],
+  "던전": [["해골 병사",35,10,3,20,15], ["오크",45,12,4,28,20], ["어둠 마법사",30,15,2,25,25]],
+};
+const BOSS = ["드래곤",120,18,6,0,0];
+const SHOP_ITEMS = [["potion","포션",15], ["atk","철검 (공격+4)",50], ["def","가죽 갑옷 (방어+2)",40]];
+const INN_COST = 10, POTION_HEAL = 25;
+
+const rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+// ═══════════════════════ 캐릭터 ═══════════════════════
+class Character {
+  constructor(name, hp, atk, def) { Object.assign(this, { name, maxHp: hp, hp, atk, def }); }
+  get alive() { return this.hp > 0; }
+}
+class Player extends Character {
+  constructor(name) { super(name, 40, 8, 2); this.level = 1; this.exp = 0; this.gold = 20; this.potions = 2; }
+  get expToNext() { return this.level * 20; }
+}
+class Monster extends Character {
+  constructor(name, hp, atk, def, exp, gold) { super(name, hp, atk, def); this.exp = exp; this.gold = gold; }
+}
+
+// ═══════════════════════ 게임 로직 ═══════════════════════
+const game = {
+  player: null, monster: null, canRun: true, mode: "town",
+
+  start(name) {
+    this.player = new Player(name); this.monster = null; this.mode = "town";
+    out("════════════════════════════", "title");
+    out("      ⚔  작은 왕국의 모험  ⚔", "title");
+    out("════════════════════════════", "title");
+    out("왕국을 위협하는 드래곤을 물리쳐 주세요!", "info");
+    out(`${name}의 모험이 시작됩니다.\n`, "info");
+  },
+  explore(area) { this.startBattle(new Monster(...pick(MONSTERS[area])), true); },
+  boss() {
+    out("\n산 정상에 오르자 땅이 흔들린다...", "enemy");
+    out("거대한 드래곤이 날개를 펼쳤다!", "enemy");
+    this.startBattle(new Monster(...BOSS), false);
+  },
+  inn() {
+    const p = this.player;
+    if (p.gold < INN_COST) return out(`여관비(${INN_COST}G)가 부족해요.`, "warn");
+    p.gold -= INN_COST; p.hp = p.maxHp;
+    out(`푹 쉬었다. HP가 모두 회복됐다! (-${INN_COST}G)`, "heal");
+  },
+  openShop() { this.mode = "shop"; out("\n[상점] 어서 오세요!", "gold"); },
+  buy(key) {
+    const p = this.player, [, name, price] = SHOP_ITEMS.find(i => i[0] === key);
+    if (p.gold < price) return out("골드가 부족해요.", "warn");
+    p.gold -= price;
+    if (key === "potion") p.potions++;
+    if (key === "atk") p.atk += 4;
+    if (key === "def") p.def += 2;
+    out(`${name}을(를) 샀다! (-${price}G)`, "gold");
+  },
+  leaveShop() { this.mode = "town"; out("마을 광장으로 돌아왔다.", "info"); },
+
+  startBattle(m, canRun) {
+    this.monster = m; this.canRun = canRun; this.mode = "battle";
+    out(`\n⚔ ${m.name}이(가) 나타났다! (HP ${m.hp})`, "enemy");
+  },
+  hit(a, t, guarding = false) {
+    let dmg = Math.max(1, a.atk + rand(-2, 3) - t.def);
+    const crit = Math.random() < 0.1;
+    if (crit) dmg *= 2;
+    if (guarding) dmg = Math.floor(dmg / 2);
+    t.hp = Math.max(0, t.hp - dmg);
+    out(`${crit ? "★치명타! " : ""}${a.name}의 공격! ${t.name}에게 ${dmg} 데미지`, a === this.player ? "dmg" : "enemy");
+    shake(t === this.player ? "hpbar" : "ebar");
+  },
+  act(action) {
+    const p = this.player, m = this.monster;
+    let guarding = false;
+    if (action === "attack") this.hit(p, m);
+    else if (action === "guard") { guarding = true; out("방어 자세! 받는 데미지 절반", "info"); }
+    else if (action === "potion") {
+      if (p.potions === 0) return out("포션이 없어요!", "warn");
+      p.potions--; p.hp = Math.min(p.maxHp, p.hp + POTION_HEAL);
+      out(`포션을 마셨다. HP ${p.hp}/${p.maxHp}`, "heal");
+    } else if (action === "run") {
+      if (!this.canRun) out("도망칠 수 없다!", "warn");
+      else if (Math.random() < 0.5) { out("무사히 도망쳤다!", "info"); this.monster = null; this.mode = "town"; return; }
+      else out("도망에 실패했다!", "warn");
+    }
+    if (m.alive) this.hit(m, p, guarding);
+    this.checkEnd();
+  },
+  checkEnd() {
+    const p = this.player, m = this.monster;
+    if (!p.alive) { out(`\n${p.name}은(는) 쓰러지고 말았다... GAME OVER`, "enemy"); this.mode = "gameover"; return; }
+    if (m.alive) return;
+    out(`${m.name}을(를) 쓰러뜨렸다!`, "gold");
+    if (m.name === BOSS[0]) {
+      out("\n════════════════════════════", "title");
+      out(`  ${p.name}이(가) 드래곤을 물리쳤습니다!`, "title");
+      out("  왕국에 평화가 찾아왔습니다. THE END", "title");
+      out("════════════════════════════", "title");
+      this.mode = "ending"; return;
+    }
+    p.gold += m.gold; out(`골드 +${m.gold}`, "gold");
+    p.exp += m.exp; out(`경험치 +${m.exp}`, "info");
+    while (p.exp >= p.expToNext) {
+      p.exp -= p.expToNext; p.level++; p.maxHp += 10; p.atk += 3; p.def += 1; p.hp = p.maxHp;
+      out(`★ 레벨 업! Lv.${p.level} — HP 전부 회복! ★`, "level");
+    }
+    if (Math.random() < 0.2) { p.potions++; out("몬스터가 포션을 떨어뜨렸다! (+1)", "heal"); }
+    this.monster = null; this.mode = "town";
+  },
+};
+
+// ═══════════════════════ 화면 ═══════════════════════
+const $ = id => document.getElementById(id);
+
+function out(text, tag = "info") {
+  const d = document.createElement("div");
+  d.className = "t-" + tag; d.textContent = text;
+  $("log").appendChild(d); $("log").scrollTop = $("log").scrollHeight;
+}
+function shake(id) { const el = $(id); el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake"); }
+
+function setBar(id, hp, max) {
+  const r = max ? hp / max : 0, el = $(id);
+  el.querySelector(".fill").style.width = (r * 100) + "%";
+  el.querySelector(".fill").style.background = r > .5 ? "#4cd964" : r > .25 ? "#ffcc00" : "#ff3b30";
+  el.querySelector(".txt").textContent = `${hp} / ${max}`;
+}
+
+function setButtons(list) {
+  const box = $("buttons"); box.innerHTML = "";
+  for (const [label, fn, color] of list) {
+    const b = document.createElement("button");
+    b.textContent = label; b.style.background = color;
+    b.onclick = () => { fn(); refresh(); };
+    box.appendChild(b);
+  }
+}
+
+function refresh() {
+  const g = game, p = g.player;
+  $("pname").textContent = `${p.name}  Lv.${p.level}`;
+  setBar("hpbar", p.hp, p.maxHp);
+  $("expbar").querySelector(".fill").style.width = (p.exp / p.expToNext * 100) + "%";
+  $("stats").innerHTML =
+    `<span>공격력</span><span>${p.atk}</span><span>방어력</span><span>${p.def}</span>` +
+    `<span>골드</span><span>${p.gold} G</span><span>포션</span><span>${p.potions} 개</span>`;
+
+  $("enemy").classList.toggle("show", g.mode === "battle");
+  if (g.mode === "battle") { $("ename").textContent = g.monster.name; setBar("ebar", g.monster.hp, g.monster.maxHp); }
+
+  if (g.mode === "town") {
+    $("place").textContent = "■ 마을 광장";
+    setButtons([
+      ["숲 탐험", () => g.explore("숲"), "#3a7d44"],
+      ["던전 탐험", enterDungeon, "#5a4a8a"],
+      ["드래곤의 산", enterBoss, "#a33b3b"],
+      ["상점", () => g.openShop(), "#b5832a"],
+      [`여관 (${INN_COST}G)`, () => g.inn(), "#2f6f8f"],
+    ]);
+  } else if (g.mode === "battle") {
+    $("place").textContent = `■ 전투 — ${g.monster.name}`;
+    setButtons([
+      ["공격", () => g.act("attack"), "#c0392b"],
+      ["방어", () => g.act("guard"), "#2c6fa8"],
+      [`포션 (${p.potions})`, () => g.act("potion"), "#27ae60"],
+      ["도망", () => g.act("run"), g.canRun ? "#7f8c8d" : "#555"],
+    ]);
+  } else if (g.mode === "shop") {
+    $("place").textContent = `■ 상점  (보유 ${p.gold}G)`;
+    setButtons([
+      ...SHOP_ITEMS.map(([k, n, pr]) => [`${n}\n${pr}G`, () => g.buy(k), "#b5832a"]),
+      ["나가기", () => g.leaveShop(), "#555"],
+    ]);
+  } else {
+    $("place").textContent = g.mode === "gameover" ? "■ GAME OVER" : "■ THE END";
+    setButtons([["다시 시작", restart, "#3a7d44"]]);
+  }
+}
+
+// ── 대화상자 (이름 입력 / 확인) ──
+function modal(html, onOpen) { $("mbox").innerHTML = html; $("modal").classList.add("show"); onOpen && onOpen(); }
+function closeModal() { $("modal").classList.remove("show"); }
+
+function confirmBox(title, msg, onYes) {
+  modal(`<h2>${title}</h2><p>${msg}</p><div class="row">
+           <button id="no" style="background:#555">아니요</button>
+           <button id="yes" style="background:#a33b3b">예</button></div>`, () => {
+    $("no").onclick = closeModal;
+    $("yes").onclick = () => { closeModal(); onYes(); refresh(); };
+  });
+}
+function enterDungeon() {
+  if (game.player.level < 3)
+    confirmBox("경고", "던전의 기운이 너무 강하다...\n(Lv.3 이상 권장)\n그래도 들어갈까요?", () => game.explore("던전"));
+  else game.explore("던전");
+}
+function enterBoss() {
+  confirmBox("드래곤의 산", "드래곤과 싸우시겠습니까?\n보스전에서는 도망칠 수 없습니다.", () => game.boss());
+}
+function restart() { $("log").innerHTML = ""; game.start(game.player.name); }
+
+function askName() {
+  modal(`<h2>⚔ 작은 왕국의 모험</h2><p>당신의 이름은?</p>
+         <input id="nm" maxlength="12" placeholder="용사">
+         <div class="row"><button id="go" style="background:#3a7d44">모험 시작</button></div>`, () => {
+    const go = () => { closeModal(); game.start($("nm").value.trim() || "용사"); refresh(); };
+    $("go").onclick = go;
+    $("nm").onkeydown = e => { if (e.key === "Enter") go(); };
+    $("nm").focus();
+  });
+}
+
+game.player = new Player("용사");
+refresh();
+setButtons([]);
+askName();
+</script>
+</body>
+</html>
